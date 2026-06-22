@@ -1,0 +1,859 @@
+// PeopleOS — Prisma schema (Phase 1 / MVP slice).
+//
+// Multi-tenancy: every tenant-scoped table carries `orgId`. Isolation is enforced
+// at the database via PostgreSQL Row-Level Security (see prisma/rls.sql) — the API
+// connects as a non-owner role (peopleos_app) that is SUBJECT to RLS, and sets
+// `app.current_org_id` per request. Application code must NEVER rely solely on
+// WHERE org_id = ... ; RLS is the backstop. Field names are camelCase and mapped
+// to snake_case columns; the column names match @peopleos/schemas conventions.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums (mirror @peopleos/schemas) ─────────────────────────────────────────
+enum UserRole {
+  ADMIN
+  RECRUITER
+  HRBP
+  MANAGER
+  EMPLOYEE
+}
+
+enum PlanTier {
+  STARTER
+  GROWTH
+  ENTERPRISE
+  PLATFORM
+}
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  PAUSED
+  CLOSED
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+  TEMP
+}
+
+enum RoleLevel {
+  INTERN
+  JUNIOR
+  MID
+  SENIOR
+  STAFF
+  PRINCIPAL
+  MANAGER
+  DIRECTOR
+  VP
+  EXEC
+}
+
+enum ApplicationStage {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  OFFER
+  HIRED
+  REJECTED
+  WITHDRAWN
+}
+
+enum ApplicationStatus {
+  ACTIVE
+  ON_HOLD
+  ARCHIVED
+}
+
+enum CandidateSource {
+  DIRECT
+  REFERRAL
+  LINKEDIN
+  INDEED
+  GLASSDOOR
+  JOB_BOARD
+  AGENCY
+  EMAIL_APPLY
+  IMPORT
+}
+
+enum RankingTier {
+  A
+  B
+  C
+  D
+}
+
+enum InterviewType {
+  PHONE
+  VIDEO
+  ONSITE
+  TECHNICAL
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum ScorecardRecommendation {
+  STRONG_YES
+  YES
+  NO
+  STRONG_NO
+}
+
+enum OfferStatus {
+  DRAFT
+  PENDING_APPROVAL
+  SENT
+  SIGNED
+  DECLINED
+  EXPIRED
+}
+
+enum HumanReviewStatus {
+  PENDING
+  IN_REVIEW
+  RESOLVED
+}
+
+// ── Core multi-tenancy ───────────────────────────────────────────────────────
+model Organisation {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  planTier  PlanTier @default(STARTER) @map("plan_tier")
+  /// Org-level settings incl. ranking weights, tone prefs, custom rules.
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  users          User[]
+  jobs           JobOpening[]
+  candidates     Candidate[]
+  applications   Application[]
+  interviews     Interview[]
+  scorecards     Scorecard[]
+  offers         Offer[]
+  rankings        CandidateRanking[]
+  auditLogs       AuditLog[]
+  reviewJobs      HumanReviewJob[]
+  policyDocuments PolicyDocument[]
+  documentChunks  DocumentChunk[]
+  chatSessions    ChatSession[]
+  chatMessages    ChatMessage[]
+  hrTickets       HrTicket[]
+  employees            Employee[]
+  skills               Skill[]
+  skillRecords         SkillRecord[]
+  attritionScores      AttritionScore[]
+  internalApplications InternalApplication[]
+  gigs                 Gig[]
+  gigInterests         GigInterest[]
+  workflowDefinitions  WorkflowDefinition[]
+  workflowInstances    WorkflowInstance[]
+  workflowTasks        WorkflowTask[]
+  assistantSessions    AssistantSession[]
+  assistantMessages    AssistantMessage[]
+
+  @@map("organisations")
+}
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  email       String
+  name        String
+  role        UserRole @default(EMPLOYEE)
+  clerkUserId String?  @unique @map("clerk_user_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  org             Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  jobsAsManager   JobOpening[] @relation("HiringManager")
+  jobsAsRecruiter JobOpening[] @relation("Recruiter")
+  scorecards      Scorecard[]
+
+  @@unique([orgId, email])
+  @@index([orgId])
+  @@map("users")
+}
+
+// ── ATS ──────────────────────────────────────────────────────────────────────
+model JobOpening {
+  id                  String     @id @default(uuid()) @db.Uuid
+  orgId               String     @map("org_id") @db.Uuid
+  title               String
+  department          String?
+  level               RoleLevel?
+  location            String?
+  type                JobType    @default(FULL_TIME)
+  status              JobStatus  @default(DRAFT)
+  jdText              String?    @map("jd_text")
+  /// Structured JD parse (JDStructured in @peopleos/schemas).
+  jdStructured        Json?      @map("jd_structured")
+  hiringManagerId     String?    @map("hiring_manager_id") @db.Uuid
+  recruiterId         String?    @map("recruiter_id") @db.Uuid
+  scorecardTemplateId String?    @map("scorecard_template_id") @db.Uuid
+  createdAt           DateTime   @default(now()) @map("created_at")
+  closedAt            DateTime?  @map("closed_at")
+
+  org           Organisation       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  hiringManager User?              @relation("HiringManager", fields: [hiringManagerId], references: [id], onDelete: SetNull)
+  recruiter     User?              @relation("Recruiter", fields: [recruiterId], references: [id], onDelete: SetNull)
+  applications         Application[]
+  rankings             CandidateRanking[]
+  internalApplications InternalApplication[]
+
+  @@index([orgId, status])
+  @@map("job_openings")
+}
+
+model Candidate {
+  id             String    @id @default(uuid()) @db.Uuid
+  orgId          String    @map("org_id") @db.Uuid
+  name           String?
+  email          String?
+  phone          String?
+  linkedinUrl    String?   @map("linkedin_url")
+  githubUrl      String?   @map("github_url")
+  source         CandidateSource @default(DIRECT)
+  resumeFilePath String?   @map("resume_file_path")
+  resumeParsedAt DateTime? @map("resume_parsed_at")
+  /// Structured CandidateProfile (output of the resume pipeline).
+  profile        Json?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  org          Organisation       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  applications Application[]
+  rankings     CandidateRanking[]
+
+  @@index([orgId])
+  @@index([orgId, email])
+  @@map("candidates")
+}
+
+model Application {
+  id          String            @id @default(uuid()) @db.Uuid
+  orgId       String            @map("org_id") @db.Uuid
+  candidateId String            @map("candidate_id") @db.Uuid
+  jobId       String            @map("job_id") @db.Uuid
+  stage       ApplicationStage  @default(APPLIED)
+  status      ApplicationStatus @default(ACTIVE)
+  /// Compact ApplicationAiRanking summary; full record in CandidateRanking.
+  aiRanking   Json?             @map("ai_ranking")
+  appliedAt   DateTime          @default(now()) @map("applied_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  org        Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  candidate  Candidate    @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  job        JobOpening   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  interviews Interview[]
+  scorecards Scorecard[]
+  offer      Offer?
+
+  @@unique([candidateId, jobId])
+  @@index([orgId, jobId, stage])
+  @@map("applications")
+}
+
+model Interview {
+  id              String          @id @default(uuid()) @db.Uuid
+  orgId           String          @map("org_id") @db.Uuid
+  applicationId   String          @map("application_id") @db.Uuid
+  interviewerIds  String[]        @map("interviewer_ids") @db.Uuid
+  scheduledAt     DateTime?       @map("scheduled_at")
+  durationMinutes Int?            @map("duration_minutes")
+  type            InterviewType   @default(VIDEO)
+  meetingUrl      String?         @map("meeting_url")
+  recordingPath   String?         @map("recording_path")
+  transcriptPath  String?         @map("transcript_path")
+  /// Module 3 governance: candidate consent to record+process is required before any
+  /// transcript work; transcripts are retained per org policy (default 90d) then deleted.
+  consentObtained Boolean         @default(false) @map("consent_obtained")
+  transcriptStatus String?        @map("transcript_status") // PENDING|TRANSCRIBED|ANALYZED|DELETED
+  transcriptRetentionDeleteAt DateTime? @map("transcript_retention_delete_at")
+  transcriptDeletedAt DateTime?   @map("transcript_deleted_at")
+  status          InterviewStatus @default(SCHEDULED)
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  org         Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  application Application  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  scorecards  Scorecard[]
+
+  @@index([orgId, applicationId])
+  @@map("interviews")
+}
+
+model Scorecard {
+  id               String                   @id @default(uuid()) @db.Uuid
+  orgId            String                   @map("org_id") @db.Uuid
+  interviewId      String?                  @map("interview_id") @db.Uuid
+  applicationId    String                   @map("application_id") @db.Uuid
+  reviewerId       String?                  @map("reviewer_id") @db.Uuid
+  /// [{ competencyId, score(1-5), evidence }]
+  competencyScores Json                     @default("[]") @map("competency_scores")
+  overall          ScorecardRecommendation?
+  aiSummary        String?                  @map("ai_summary")
+  aiScorecardDraft Json?                    @map("ai_scorecard_draft")
+  submittedAt      DateTime?                @map("submitted_at")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+
+  org         Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  interview   Interview?   @relation(fields: [interviewId], references: [id], onDelete: SetNull)
+  application Application  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  reviewer    User?        @relation(fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, applicationId])
+  @@map("scorecards")
+}
+
+model Offer {
+  id            String      @id @default(uuid()) @db.Uuid
+  orgId         String      @map("org_id") @db.Uuid
+  applicationId String      @unique @map("application_id") @db.Uuid
+  baseSalary    Decimal?    @map("base_salary") @db.Decimal(12, 2)
+  currency      String      @default("USD")
+  equity        String?
+  bonus         Decimal?    @db.Decimal(12, 2)
+  startDate     DateTime?   @map("start_date") @db.Date
+  expiryDate    DateTime?   @map("expiry_date") @db.Date
+  status        OfferStatus @default(DRAFT)
+  letterPath    String?     @map("letter_path")
+  sentAt        DateTime?   @map("sent_at")
+  signedAt      DateTime?   @map("signed_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  org         Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  application Application  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@map("offers")
+}
+
+// ── AI scoring (Module 1) ──────────────────────────────────────────────────
+model CandidateRanking {
+  id            String      @id @default(uuid()) @db.Uuid
+  orgId         String      @map("org_id") @db.Uuid
+  candidateId   String      @map("candidate_id") @db.Uuid
+  jobId         String      @map("job_id") @db.Uuid
+  finalScore    Float       @map("final_score")
+  tier          RankingTier
+  skillMatchPct Float       @map("skill_match_pct")
+  expRelevance  Float       @map("exp_relevance_score")
+  /// RankingComponents sub-scores.
+  components    Json
+  strengths     String[]
+  concerns      String[]
+  interviewFocus String[]   @map("interview_focus")
+  aiSummary     String      @map("ai_summary")
+  /// BiasCheck envelope { biasIndicatorsDetected, correctionApplied }.
+  biasCheck     Json        @map("bias_check")
+  confidence    String
+  /// Chain-of-thought reasoning, retained for audit only — NEVER returned to clients.
+  reasoning     String?
+  modelVersion  String      @map("model_version")
+  promptVersion String?     @map("prompt_version")
+  scoredAt      DateTime    @default(now()) @map("scored_at")
+
+  org       Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  candidate Candidate    @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  job       JobOpening   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, jobId, finalScore])
+  @@index([candidateId, jobId])
+  @@map("candidate_rankings")
+}
+
+// ── Governance ─────────────────────────────────────────────────────────────
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  orgId      String   @map("org_id") @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  payload    Json     @default("{}")
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, entityType, entityId])
+  @@index([orgId, createdAt])
+  @@map("audit_logs")
+}
+
+/// Prompt registry (prompt standard #6). GLOBAL (not tenant-scoped): prompts are
+/// versioned in Git; per-org A/B is controlled by feature flags, not rows here.
+model PromptVersion {
+  id          String    @id @default(uuid()) @db.Uuid
+  module      String // e.g. "module1"
+  task        String // e.g. "holistic_assessment"
+  version     String // e.g. "1.0.0"
+  content     String
+  evalScore   Float?    @map("eval_score")
+  evalMetrics Json      @default("{}") @map("eval_metrics")
+  deployedAt  DateTime? @map("deployed_at")
+  deprecatedAt DateTime? @map("deprecated_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@unique([module, task, version])
+  @@map("prompt_versions")
+}
+
+/// Failed-validation / low-confidence routing target (prompt standard #5).
+model HumanReviewJob {
+  id         String            @id @default(uuid()) @db.Uuid
+  orgId      String            @map("org_id") @db.Uuid
+  module     String
+  task       String
+  entityType String            @map("entity_type")
+  entityId   String?           @map("entity_id")
+  reason     String
+  /// Raw model output + validation error, for the reviewer.
+  payload    Json              @default("{}")
+  status     HumanReviewStatus @default(PENDING)
+  createdAt  DateTime          @default(now()) @map("created_at")
+  resolvedAt DateTime?         @map("resolved_at")
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, status])
+  @@map("human_review_jobs")
+}
+
+// ── Module 4 — Company knowledge base + HR chatbot (RAG) ──────────────────────
+
+/// A policy/handbook document (spec Layer 2C). doc_type/status are free strings
+/// (validated by the Zod contract): doc_type ∈ handbook|benefits|pto|conduct|
+/// security|compensation|career_ladder|other ; status ∈ ACTIVE|SUPERSEDED|ARCHIVED.
+model PolicyDocument {
+  id              String    @id @default(uuid()) @db.Uuid
+  orgId           String    @map("org_id") @db.Uuid
+  title           String
+  docType         String    @map("doc_type")
+  filePath        String?   @map("file_path")
+  effectiveDate   DateTime? @map("effective_date") @db.Date
+  version         Int       @default(1)
+  ownerId         String?   @map("owner_id") @db.Uuid
+  status          String    @default("ACTIVE")
+  /// SimHash fingerprint for dedup / superseded-version detection (Layer 2C step 5).
+  simhash         String?
+  chunksIndexedAt DateTime? @map("chunks_indexed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  org    Organisation    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  chunks DocumentChunk[]
+
+  @@index([orgId, docType, status])
+  @@map("policy_documents")
+}
+
+/// A semantically-chunked, embedded slice of a policy document (spec Layer 2C
+/// steps 3–4). Embedding is stored as a Prisma-native Float[] so dev retrieval is
+/// brute-force cosine in the API; prod swaps to Pinecone/pgvector ANN.
+model DocumentChunk {
+  id          String   @id @default(uuid()) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  docId       String   @map("doc_id") @db.Uuid
+  sectionPath String   @map("section_path")
+  text        String
+  charStart   Int      @map("char_start")
+  charEnd     Int      @map("char_end")
+  pageNumber  Int?     @map("page_number")
+  tokenCount  Int      @map("token_count")
+  /// Dense embedding (text-embedding-3-large). Float[] → Postgres double precision[].
+  embedding   Float[]
+  /// Superseded chunks are marked inactive (Layer 2C step 5) — retrieval filters on it.
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  org Organisation   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  doc PolicyDocument @relation(fields: [docId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, docId, active])
+  @@map("document_chunks")
+}
+
+/// A chatbot conversation (spec Module 4). Resumable across channels; the live
+/// sliding-window memory lives in Redis, this is the durable record.
+model ChatSession {
+  id           String   @id @default(uuid()) @db.Uuid
+  orgId        String   @map("org_id") @db.Uuid
+  userId       String?  @map("user_id") @db.Uuid
+  channel      String   @default("WEB")
+  startedAt    DateTime @default(now()) @map("started_at")
+  lastActiveAt DateTime @default(now()) @map("last_active_at")
+
+  org      Organisation  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([orgId, userId])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  sessionId String   @map("session_id") @db.Uuid
+  role      String // user | assistant
+  content   String
+  /// Citation[] (doc title, section_path, effective_date, docId) for assistant turns.
+  citations Json     @default("[]")
+  feedback  String? // positive | negative | null
+  /// Extracted topic for analytics (most-asked-topics / unresolved clustering).
+  topic     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  org     Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  session ChatSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, sessionId])
+  @@map("chat_messages")
+}
+
+/// HR escalation ticket (spec Module 4 step 5 / Module 10 create_hr_ticket).
+model HrTicket {
+  id          String    @id @default(uuid()) @db.Uuid
+  orgId       String    @map("org_id") @db.Uuid
+  raisedById  String?   @map("raised_by_id") @db.Uuid
+  assigneeId  String?   @map("assignee_id") @db.Uuid
+  category    String // POLICY | SENSITIVE | ACTION | OTHER
+  subject     String
+  description String
+  status      String    @default("OPEN") // OPEN | IN_PROGRESS | RESOLVED
+  sessionId   String?   @map("session_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at")
+  resolvedAt  DateTime? @map("resolved_at")
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, status])
+  @@map("hr_tickets")
+}
+
+// ── Module 5 / HRMS — Employee records (workforce analytics source) ───────────
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+  TEMP
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+/// An employee record (spec HRMS entity). The source for Module 5 workforce
+/// composition (headcount, span of control, promotion/mobility) and the join target
+/// for Module 7 attrition. Self-relation `manager` powers the org chart / span of control.
+model Employee {
+  id                String         @id @default(uuid()) @db.Uuid
+  orgId             String         @map("org_id") @db.Uuid
+  userId            String?        @map("user_id") @db.Uuid
+  employeeNumber    String?        @map("employee_number")
+  name              String
+  email             String?
+  department        String?
+  roleTitle         String?        @map("role_title")
+  level             RoleLevel?
+  managerId         String?        @map("manager_id") @db.Uuid
+  location          String?
+  employmentType    EmploymentType @default(FULL_TIME) @map("employment_type")
+  hireDate          DateTime?      @map("hire_date") @db.Date
+  status            EmployeeStatus @default(ACTIVE)
+  lastReviewDate    DateTime?      @map("last_review_date") @db.Date
+  /// Latest performance rating (1-5); feeds the 90-day new-hire-success metric.
+  lastReviewRating  Float?         @map("last_review_rating")
+  lastPromotionDate DateTime?      @map("last_promotion_date") @db.Date
+  /// Module 7 governance: the employee's right to NOT be profiled by the attrition
+  /// model (opt-out). Opted-out employees are excluded from scoring entirely.
+  attritionOptOut   Boolean        @default(false) @map("attrition_opt_out")
+  createdAt         DateTime       @default(now()) @map("created_at")
+
+  org                  Organisation          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  manager              Employee?             @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  reports              Employee[]            @relation("EmployeeManager")
+  skillRecords         SkillRecord[]
+  attritionScores      AttritionScore[]
+  internalApplications InternalApplication[]
+  gigInterests         GigInterest[]
+
+  @@index([orgId, department])
+  @@index([orgId, managerId])
+  @@map("employees")
+}
+
+// ── Module 6 — Employee Skill Graph (Postgres model; Neo4j is the prod adapter) ──
+// Graph semantics modelled relationally so RLS tenant-isolation applies to skill data:
+//   :Skill node            → Skill (self-relation parent/children = the taxonomy hierarchy)
+//   (Employee)-[HAS_SKILL]→ SkillRecord (proficiency + confidence + source + verification)
+// category/proficiency/source are free strings validated by the Zod contract (common.ts).
+
+/// A canonical skill in an org's taxonomy. (A shared ESCO ontology could be global later.)
+model Skill {
+  id            String   @id @default(uuid()) @db.Uuid
+  orgId         String   @map("org_id") @db.Uuid
+  canonicalName String   @map("canonical_name")
+  aliases       String[]
+  category      String // TECHNICAL | DOMAIN | SOFT | LANGUAGE | CERTIFICATION
+  escoUri       String?  @map("esco_uri")
+  parentSkillId String?  @map("parent_skill_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  org      Organisation  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  parent   Skill?        @relation("SkillHierarchy", fields: [parentSkillId], references: [id], onDelete: SetNull)
+  children Skill[]       @relation("SkillHierarchy")
+  records  SkillRecord[]
+
+  @@unique([orgId, canonicalName])
+  @@index([orgId, category])
+  @@map("skills")
+}
+
+/// An employee's claim on a skill (HAS_SKILL). confidenceScore is derived from `source`
+/// (self 0.5 / manager 0.8 / assessment 0.9 / resume 0.6 / project 0.7 — spec Layer 3A).
+model SkillRecord {
+  id              String    @id @default(uuid()) @db.Uuid
+  orgId           String    @map("org_id") @db.Uuid
+  employeeId      String    @map("employee_id") @db.Uuid
+  skillId         String    @map("skill_id") @db.Uuid
+  proficiency     String // AWARE | PRACTITIONER | ADVANCED | EXPERT
+  confidenceScore Float     @map("confidence_score")
+  source          String // SELF_REPORTED | MANAGER_VERIFIED | ASSESSMENT_VERIFIED | INFERRED_RESUME | INFERRED_PROJECT
+  verifiedById    String?   @map("verified_by_id") @db.Uuid
+  verifiedAt      DateTime? @map("verified_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  org      Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  skill    Skill        @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, skillId])
+  @@index([orgId, skillId])
+  @@map("skill_records")
+}
+
+// ── Module 7 — Attrition Prediction (ML score + SHAP + LLM explanation) ───────
+/// A point-in-time attrition risk score for an employee. ADVISORY ONLY — no
+/// automated HR action is ever taken from it; managers see the tier + recommendation,
+/// never the raw score/features; it is never shown to the employee (spec ethics).
+model AttritionScore {
+  id           String   @id @default(uuid()) @db.Uuid
+  orgId        String   @map("org_id") @db.Uuid
+  employeeId   String   @map("employee_id") @db.Uuid
+  riskScore    Float    @map("risk_score")
+  riskTier     String   @map("risk_tier") // CRITICAL | HIGH | MEDIUM | LOW
+  /// [{ feature, label, contribution, direction }] — the SHAP-style top drivers.
+  topDrivers   Json     @default("[]") @map("top_drivers")
+  /// Full per-feature contributions (feature → contribution); audit/debug only.
+  shapValues   Json     @default("{}") @map("shap_values")
+  modelVersion String   @map("model_version")
+  scoredAt     DateTime @default(now()) @map("scored_at")
+
+  org      Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, riskTier])
+  @@index([employeeId, scoredAt])
+  @@map("attrition_scores")
+}
+
+// ── Module 8 — Internal Talent Marketplace (mobility / succession / gigs) ──────
+/// An employee's interest in / application to an internal role (the internal job
+/// board). Also the source of the org's internal-mobility metrics (fill rate,
+/// internalMobilityRate — wired into Module 5 5b).
+model InternalApplication {
+  id           String   @id @default(uuid()) @db.Uuid
+  orgId        String   @map("org_id") @db.Uuid
+  employeeId   String   @map("employee_id") @db.Uuid
+  jobOpeningId String   @map("job_opening_id") @db.Uuid
+  status       String   @default("INTERESTED") // INTERESTED | APPLIED | SHORTLISTED | WITHDRAWN | REJECTED | HIRED
+  /// Skill-graph match score [0,1] captured at apply time (advisory, recomputable).
+  matchScore   Float?   @map("match_score")
+  note         String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  org      Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  job      JobOpening   @relation(fields: [jobOpeningId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, jobOpeningId])
+  @@index([orgId, jobOpeningId])
+  @@index([orgId, status])
+  @@map("internal_applications")
+}
+
+/// A short-term internal project / stretch assignment (the gig marketplace, 8c).
+model Gig {
+  id             String   @id @default(uuid()) @db.Uuid
+  orgId          String   @map("org_id") @db.Uuid
+  title          String
+  description    String
+  requiredSkills String[] @map("required_skills")
+  durationWeeks  Int?     @map("duration_weeks")
+  status         String   @default("OPEN") // OPEN | FILLED | CLOSED
+  createdById    String?  @map("created_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  org       Organisation  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  interests GigInterest[]
+
+  @@index([orgId, status])
+  @@map("gigs")
+}
+
+/// An employee's interest in a gig (8c).
+model GigInterest {
+  id         String   @id @default(uuid()) @db.Uuid
+  orgId      String   @map("org_id") @db.Uuid
+  gigId      String   @map("gig_id") @db.Uuid
+  employeeId String   @map("employee_id") @db.Uuid
+  status     String   @default("INTERESTED") // INTERESTED | SELECTED | DECLINED
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  org      Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  gig      Gig          @relation(fields: [gigId], references: [id], onDelete: Cascade)
+  employee Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([gigId, employeeId])
+  @@index([orgId, gigId])
+  @@map("gig_interests")
+}
+
+// ── Module 9 — Workflow Automation Engine ─────────────────────────────────────
+// A durable, DB-persisted state machine over Postgres (the dev engine). Temporal is
+// the documented prod execution substrate; the WorkflowDefinition/Instance/Task shape
+// is the durable state the worker tick advances. steps/context are JSON validated by Zod.
+
+/// A reusable HR process template (a DAG of steps). trigger = how instances start.
+model WorkflowDefinition {
+  id          String   @id @default(uuid()) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  key         String
+  name        String
+  description String?
+  trigger     String   @default("MANUAL") // MANUAL | EVENT | SCHEDULED
+  eventType   String?  @map("event_type") // EVENT trigger key, e.g. "employee.created"
+  schedule    String? // SCHEDULED trigger (cron-ish; the dev tick reads it)
+  /// WorkflowStep[] (id/type/name/assigneeRole/slaHours/config/next/branches).
+  steps       Json     @default("[]")
+  version     Int      @default(1)
+  active      Boolean  @default(true)
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  org       Organisation       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  instances WorkflowInstance[]
+
+  @@unique([orgId, key, version])
+  @@index([orgId, trigger])
+  @@map("workflow_definitions")
+}
+
+/// A running occurrence of a definition (durable; survives restarts).
+model WorkflowInstance {
+  id            String    @id @default(uuid()) @db.Uuid
+  orgId         String    @map("org_id") @db.Uuid
+  definitionId  String    @map("definition_id") @db.Uuid
+  status        String    @default("RUNNING") // RUNNING | WAITING | COMPLETED | FAILED | CANCELLED
+  subjectType   String?   @map("subject_type") // e.g. "employee"
+  subjectId     String?   @map("subject_id") @db.Uuid
+  currentStepId String?   @map("current_step_id")
+  context       Json      @default("{}")
+  startedAt     DateTime  @default(now()) @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+  createdById   String?   @map("created_by_id") @db.Uuid
+
+  org        Organisation       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  definition WorkflowDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  tasks      WorkflowTask[]
+
+  @@index([orgId, status])
+  @@index([definitionId])
+  @@map("workflow_instances")
+}
+
+/// A single step occurrence — a human task/approval (PENDING until completed) or an
+/// auto step the engine ran. dueAt drives SLA/escalation in the worker tick.
+model WorkflowTask {
+  id            String    @id @default(uuid()) @db.Uuid
+  orgId         String    @map("org_id") @db.Uuid
+  instanceId    String    @map("instance_id") @db.Uuid
+  stepId        String    @map("step_id")
+  type          String // TASK | APPROVAL | NOTIFICATION | AI_TASK | TIMER | BRANCH
+  name          String
+  assigneeRole  String?   @map("assignee_role")
+  assigneeId    String?   @map("assignee_id") @db.Uuid
+  status        String    @default("PENDING") // PENDING | IN_PROGRESS | COMPLETED | SKIPPED | ESCALATED | OVERDUE
+  outcome       String? // APPROVED | REJECTED | DONE
+  dueAt         DateTime? @map("due_at")
+  completedAt   DateTime? @map("completed_at")
+  completedById String?   @map("completed_by_id") @db.Uuid
+  note          String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  org      Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  instance WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, status])
+  @@index([instanceId])
+  @@index([orgId, assigneeRole, status])
+  @@map("workflow_tasks")
+}
+
+// ── Module 10 — Agentic HR Assistant (org-wide role-aware orchestrator) ────────
+// The capstone agent. A ReAct loop in the AI service calls module capabilities as
+// role-filtered tools via the secret-authed /internal/assistant/* dispatcher, which
+// re-enforces tenancy + per-tool role governance (never trusting the agent). These
+// rows persist the conversation + a SUMMARISED tool trace (never raw sensitive data).
+
+model AssistantSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  title     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  org      Organisation       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  messages AssistantMessage[]
+
+  @@index([orgId, userId])
+  @@map("assistant_sessions")
+}
+
+model AssistantMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  sessionId String   @map("session_id") @db.Uuid
+  role      String // USER | ASSISTANT
+  content   String
+  /// ToolCallTrace[] — { tool, ok, summary } (summarised; never raw tool output).
+  toolCalls Json     @default("[]") @map("tool_calls")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  org     Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  session AssistantSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@map("assistant_messages")
+}

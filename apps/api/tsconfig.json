@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"]
+  },
+  "references": [{ "path": "../../packages/schemas" }],
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

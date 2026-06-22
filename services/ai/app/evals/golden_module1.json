@@ -1,0 +1,592 @@
+{
+  "_comment": "Golden eval set for Module 1 (spec Layer 6). 'cases' are independent (profile + JD + expectedTier), used for tier accuracy and a set-wide Precision@3. 'rankingCases' are JOB-LEVEL: one JD scored against a set of candidates, each with an expectedTier and an expected best-first ordering, so Precision@3 and NDCG@k are meaningful within a single job; some carry an optional 'group' label for the selection-rate parity metric. Everything is designed to run with the OFFLINE deterministic ranker (no LLM/embeddings) so it gates CI without network. Profiles intentionally include name/school/grad-year so the bias-masking step has something to strip.",
+  "cases": [
+    {
+      "id": "strong-backend-go",
+      "expectedTier": "A",
+      "profile": {
+        "name": "Jordan Rivera",
+        "email": "jordan@example.com",
+        "location": "Berlin, DE",
+        "education": [
+          { "school": "Technical University of Munich", "degree": "MSc", "field": "Computer Science", "startYear": 2012, "endYear": 2014 }
+        ],
+        "experience": [
+          { "company": "PayFlow", "title": "Senior Backend Engineer", "startDate": "2018-01-01", "endDate": null, "description": "Designed and operated a high-throughput payments platform in Go with event-driven services on Kafka; mentored mid-level engineers.", "isCurrent": true },
+          { "company": "DataCorp", "title": "Backend Engineer", "startDate": "2014-09-01", "endDate": "2017-12-01", "description": "Built distributed services in Go and Kubernetes for an analytics platform.", "isCurrent": false }
+        ],
+        "skills": [
+          { "canonicalName": "Go", "rawName": "Golang", "category": "TECHNICAL", "proficiency": "EXPERT", "confidence": 0.6 },
+          { "canonicalName": "Kafka", "rawName": null, "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 },
+          { "canonicalName": "Kubernetes", "rawName": "k8s", "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 }
+        ],
+        "totalYoe": 9
+      },
+      "jd": {
+        "requiredSkills": [
+          { "canonicalName": "Go", "importance": "CRITICAL" },
+          { "canonicalName": "Kafka", "importance": "CRITICAL" }
+        ],
+        "preferredSkills": ["Kubernetes"],
+        "requiredYoe": 5,
+        "niceToHaveYoe": null,
+        "roleLevel": "SENIOR",
+        "keyResponsibilities": [
+          "Design and operate the payments platform in Go",
+          "Build event-driven services on Kafka",
+          "Mentor mid-level engineers"
+        ],
+        "teamContext": "Platform team",
+        "reportingStructure": "Reports to the Engineering Manager"
+      }
+    },
+    {
+      "id": "solid-fullstack",
+      "expectedTier": "B",
+      "profile": {
+        "name": "Priya Anand",
+        "email": "priya@example.com",
+        "location": "Bangalore, IN",
+        "education": [
+          { "school": "IIT Bombay", "degree": "BTech", "field": "Information Technology", "startYear": 2013, "endYear": 2017 }
+        ],
+        "experience": [
+          { "company": "ShopNow", "title": "Full Stack Engineer", "startDate": "2019-03-01", "endDate": null, "description": "Built React frontends and Node.js services; integrated PostgreSQL and REST APIs.", "isCurrent": true },
+          { "company": "WebStudio", "title": "Frontend Engineer", "startDate": "2017-07-01", "endDate": "2019-02-01", "description": "Developed React components and TypeScript build tooling.", "isCurrent": false }
+        ],
+        "skills": [
+          { "canonicalName": "React", "rawName": "React.js", "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 },
+          { "canonicalName": "Node.js", "rawName": null, "category": "TECHNICAL", "proficiency": "PRACTITIONER", "confidence": 0.6 },
+          { "canonicalName": "TypeScript", "rawName": null, "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 }
+        ],
+        "totalYoe": 6
+      },
+      "jd": {
+        "requiredSkills": [
+          { "canonicalName": "React", "importance": "CRITICAL" },
+          { "canonicalName": "Node.js", "importance": "CRITICAL" },
+          { "canonicalName": "PostgreSQL", "importance": "PREFERRED" }
+        ],
+        "preferredSkills": ["TypeScript"],
+        "requiredYoe": 4,
+        "niceToHaveYoe": null,
+        "roleLevel": "MID",
+        "keyResponsibilities": [
+          "Build React frontends and Node.js services",
+          "Integrate PostgreSQL and REST APIs"
+        ],
+        "teamContext": "Product engineering",
+        "reportingStructure": null
+      }
+    },
+    {
+      "id": "partial-transferable",
+      "expectedTier": "C",
+      "profile": {
+        "name": "Sam Becker",
+        "email": "sam@example.com",
+        "location": "Austin, US",
+        "education": [
+          { "school": "University of Texas", "degree": "BSc", "field": "Mathematics", "startYear": 2016, "endYear": 2020 }
+        ],
+        "experience": [
+          { "company": "FrontendCo", "title": "Frontend Engineer", "startDate": "2020-06-01", "endDate": null, "description": "Built React single-page apps; some Node.js scripting for tooling.", "isCurrent": true }
+        ],
+        "skills": [
+          { "canonicalName": "React", "rawName": null, "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 },
+          { "canonicalName": "JavaScript", "rawName": "JS", "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 }
+        ],
+        "totalYoe": 4
+      },
+      "jd": {
+        "requiredSkills": [
+          { "canonicalName": "Go", "importance": "CRITICAL" },
+          { "canonicalName": "Kafka", "importance": "CRITICAL" },
+          { "canonicalName": "Kubernetes", "importance": "PREFERRED" }
+        ],
+        "preferredSkills": ["PostgreSQL"],
+        "requiredYoe": 5,
+        "niceToHaveYoe": null,
+        "roleLevel": "SENIOR",
+        "keyResponsibilities": [
+          "Design distributed backend services in Go",
+          "Operate event-driven pipelines on Kafka"
+        ],
+        "teamContext": "Infrastructure",
+        "reportingStructure": null
+      }
+    },
+    {
+      "id": "weak-mismatch",
+      "expectedTier": "D",
+      "profile": {
+        "name": "Alex Tan",
+        "email": "alex@example.com",
+        "location": "Singapore, SG",
+        "education": [
+          { "school": "National University of Singapore", "degree": "BA", "field": "Marketing", "startYear": 2015, "endYear": 2019 }
+        ],
+        "experience": [
+          { "company": "AdAgency", "title": "Marketing Coordinator", "startDate": "2019-08-01", "endDate": null, "description": "Managed social campaigns and compiled weekly performance reports.", "isCurrent": true }
+        ],
+        "skills": [
+          { "canonicalName": "Google Analytics", "rawName": null, "category": "DOMAIN", "proficiency": "PRACTITIONER", "confidence": 0.6 }
+        ],
+        "totalYoe": 5
+      },
+      "jd": {
+        "requiredSkills": [
+          { "canonicalName": "Go", "importance": "CRITICAL" },
+          { "canonicalName": "Kafka", "importance": "CRITICAL" },
+          { "canonicalName": "Kubernetes", "importance": "CRITICAL" }
+        ],
+        "preferredSkills": ["PostgreSQL", "Python"],
+        "requiredYoe": 5,
+        "niceToHaveYoe": null,
+        "roleLevel": "SENIOR",
+        "keyResponsibilities": [
+          "Design distributed backend services in Go",
+          "Operate Kafka pipelines on Kubernetes"
+        ],
+        "teamContext": "Backend platform",
+        "reportingStructure": null
+      }
+    },
+    {
+      "id": "strong-ml",
+      "expectedTier": "A",
+      "profile": {
+        "name": "Maria Lopez",
+        "email": "maria@example.com",
+        "location": "Madrid, ES",
+        "education": [
+          { "school": "Universidad Politecnica de Madrid", "degree": "PhD", "field": "Machine Learning", "startYear": 2010, "endYear": 2015 }
+        ],
+        "experience": [
+          { "company": "VisionAI", "title": "Senior Machine Learning Engineer", "startDate": "2017-01-01", "endDate": null, "description": "Built and shipped machine learning models in Python with PyTorch; led MLOps for production deployment.", "isCurrent": true },
+          { "company": "ResearchLab", "title": "Research Scientist", "startDate": "2015-03-01", "endDate": "2016-12-01", "description": "Developed deep learning models in TensorFlow for computer vision research.", "isCurrent": false }
+        ],
+        "skills": [
+          { "canonicalName": "Python", "rawName": null, "category": "TECHNICAL", "proficiency": "EXPERT", "confidence": 0.6 },
+          { "canonicalName": "PyTorch", "rawName": "torch", "category": "TECHNICAL", "proficiency": "EXPERT", "confidence": 0.6 },
+          { "canonicalName": "Machine Learning", "rawName": "ML", "category": "TECHNICAL", "proficiency": "EXPERT", "confidence": 0.6 }
+        ],
+        "totalYoe": 9
+      },
+      "jd": {
+        "requiredSkills": [
+          { "canonicalName": "Python", "importance": "CRITICAL" },
+          { "canonicalName": "PyTorch", "importance": "CRITICAL" },
+          { "canonicalName": "Machine Learning", "importance": "CRITICAL" }
+        ],
+        "preferredSkills": ["TensorFlow"],
+        "requiredYoe": 5,
+        "niceToHaveYoe": null,
+        "roleLevel": "SENIOR",
+        "keyResponsibilities": [
+          "Build and ship machine learning models in Python with PyTorch",
+          "Lead MLOps for production deployment"
+        ],
+        "teamContext": "Applied ML",
+        "reportingStructure": null
+      }
+    },
+    {
+      "id": "mid-data-eng",
+      "expectedTier": "B",
+      "profile": {
+        "name": "Chen Wei",
+        "email": "chen@example.com",
+        "location": "Toronto, CA",
+        "education": [
+          { "school": "University of Waterloo", "degree": "BSc", "field": "Computer Science", "startYear": 2014, "endYear": 2018 }
+        ],
+        "experience": [
+          { "company": "DataPipe", "title": "Data Engineer", "startDate": "2018-09-01", "endDate": null, "description": "Built Python data pipelines and PostgreSQL warehouses; some Kafka stream processing.", "isCurrent": true }
+        ],
+        "skills": [
+          { "canonicalName": "Python", "rawName": null, "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 },
+          { "canonicalName": "PostgreSQL", "rawName": "postgres", "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 },
+          { "canonicalName": "Kafka", "rawName": null, "category": "TECHNICAL", "proficiency": "PRACTITIONER", "confidence": 0.6 }
+        ],
+        "totalYoe": 6
+      },
+      "jd": {
+        "requiredSkills": [
+          { "canonicalName": "Python", "importance": "CRITICAL" },
+          { "canonicalName": "PostgreSQL", "importance": "CRITICAL" },
+          { "canonicalName": "Kafka", "importance": "PREFERRED" }
+        ],
+        "preferredSkills": ["Airflow"],
+        "requiredYoe": 4,
+        "niceToHaveYoe": null,
+        "roleLevel": "MID",
+        "keyResponsibilities": [
+          "Build Python data pipelines",
+          "Maintain PostgreSQL warehouses",
+          "Operate Kafka stream processing"
+        ],
+        "teamContext": "Data platform",
+        "reportingStructure": null
+      }
+    },
+    {
+      "id": "strong-devops",
+      "expectedTier": "A",
+      "profile": {
+        "name": "Omar Haddad",
+        "email": "omar@example.com",
+        "location": "Dubai, AE",
+        "education": [
+          { "school": "American University of Sharjah", "degree": "BSc", "field": "Computer Engineering", "startYear": 2010, "endYear": 2014 }
+        ],
+        "experience": [
+          { "company": "CloudOps", "title": "Senior Platform Engineer", "startDate": "2017-02-01", "endDate": null, "description": "Operated production Kubernetes clusters; built Terraform infrastructure and CI/CD pipelines; managed AWS at scale.", "isCurrent": true },
+          { "company": "HostingCo", "title": "Site Reliability Engineer", "startDate": "2014-06-01", "endDate": "2017-01-01", "description": "Ran AWS infrastructure and Docker container platforms; on-call incident response.", "isCurrent": false }
+        ],
+        "skills": [
+          { "canonicalName": "Kubernetes", "rawName": "k8s", "category": "TECHNICAL", "proficiency": "EXPERT", "confidence": 0.6 },
+          { "canonicalName": "Terraform", "rawName": null, "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 },
+          { "canonicalName": "AWS", "rawName": null, "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 }
+        ],
+        "totalYoe": 10
+      },
+      "jd": {
+        "requiredSkills": [
+          { "canonicalName": "Kubernetes", "importance": "CRITICAL" },
+          { "canonicalName": "Terraform", "importance": "CRITICAL" },
+          { "canonicalName": "AWS", "importance": "PREFERRED" }
+        ],
+        "preferredSkills": ["Docker"],
+        "requiredYoe": 5,
+        "niceToHaveYoe": null,
+        "roleLevel": "SENIOR",
+        "keyResponsibilities": [
+          "Operate production Kubernetes clusters",
+          "Build Terraform infrastructure and CI/CD pipelines",
+          "Manage AWS at scale"
+        ],
+        "teamContext": "Platform / SRE",
+        "reportingStructure": null
+      }
+    },
+    {
+      "id": "junior-underqualified-yoe",
+      "expectedTier": "C",
+      "profile": {
+        "name": "Lena Fischer",
+        "email": "lena@example.com",
+        "location": "Vienna, AT",
+        "education": [
+          { "school": "TU Wien", "degree": "BSc", "field": "Software Engineering", "startYear": 2019, "endYear": 2023 }
+        ],
+        "experience": [
+          { "company": "StartupX", "title": "Junior Backend Engineer", "startDate": "2023-07-01", "endDate": null, "description": "Built REST services in Go; learning Kafka basics on the job.", "isCurrent": true }
+        ],
+        "skills": [
+          { "canonicalName": "Go", "rawName": "Golang", "category": "TECHNICAL", "proficiency": "PRACTITIONER", "confidence": 0.6 },
+          { "canonicalName": "Kafka", "rawName": null, "category": "TECHNICAL", "proficiency": "AWARE", "confidence": 0.6 }
+        ],
+        "totalYoe": 1
+      },
+      "jd": {
+        "requiredSkills": [
+          { "canonicalName": "Go", "importance": "CRITICAL" },
+          { "canonicalName": "Kafka", "importance": "CRITICAL" }
+        ],
+        "preferredSkills": ["Kubernetes"],
+        "requiredYoe": 6,
+        "niceToHaveYoe": null,
+        "roleLevel": "SENIOR",
+        "keyResponsibilities": [
+          "Design and operate the payments platform in Go",
+          "Build event-driven services on Kafka"
+        ],
+        "teamContext": "Platform team",
+        "reportingStructure": null
+      }
+    },
+    {
+      "id": "strong-frontend",
+      "expectedTier": "B",
+      "profile": {
+        "name": "Yuki Tanaka",
+        "email": "yuki@example.com",
+        "location": "Tokyo, JP",
+        "education": [
+          { "school": "University of Tokyo", "degree": "BSc", "field": "Information Science", "startYear": 2011, "endYear": 2015 }
+        ],
+        "experience": [
+          { "company": "PixelWorks", "title": "Senior Frontend Engineer", "startDate": "2018-04-01", "endDate": null, "description": "Led a React and TypeScript design system; drove accessibility and performance improvements across the product.", "isCurrent": true },
+          { "company": "WebStudio", "title": "Frontend Engineer", "startDate": "2015-05-01", "endDate": "2018-03-01", "description": "Built React components and CSS architecture for a SaaS dashboard.", "isCurrent": false }
+        ],
+        "skills": [
+          { "canonicalName": "React", "rawName": "React.js", "category": "TECHNICAL", "proficiency": "EXPERT", "confidence": 0.6 },
+          { "canonicalName": "TypeScript", "rawName": null, "category": "TECHNICAL", "proficiency": "EXPERT", "confidence": 0.6 },
+          { "canonicalName": "CSS", "rawName": null, "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 }
+        ],
+        "totalYoe": 9
+      },
+      "jd": {
+        "requiredSkills": [
+          { "canonicalName": "React", "importance": "CRITICAL" },
+          { "canonicalName": "TypeScript", "importance": "CRITICAL" },
+          { "canonicalName": "CSS", "importance": "PREFERRED" }
+        ],
+        "preferredSkills": ["Accessibility"],
+        "requiredYoe": 5,
+        "niceToHaveYoe": null,
+        "roleLevel": "SENIOR",
+        "keyResponsibilities": [
+          "Lead a React and TypeScript design system",
+          "Drive accessibility and performance improvements"
+        ],
+        "teamContext": "Design systems",
+        "reportingStructure": null
+      }
+    },
+    {
+      "id": "career-changer-weak",
+      "expectedTier": "D",
+      "profile": {
+        "name": "Diego Morales",
+        "email": "diego@example.com",
+        "location": "Mexico City, MX",
+        "education": [
+          { "school": "UNAM", "degree": "BA", "field": "Economics", "startYear": 2013, "endYear": 2017 }
+        ],
+        "experience": [
+          { "company": "BankCorp", "title": "Financial Analyst", "startDate": "2017-09-01", "endDate": null, "description": "Built Excel financial models and quarterly reports; some SQL querying.", "isCurrent": true }
+        ],
+        "skills": [
+          { "canonicalName": "Excel", "rawName": null, "category": "DOMAIN", "proficiency": "ADVANCED", "confidence": 0.6 },
+          { "canonicalName": "SQL", "rawName": null, "category": "TECHNICAL", "proficiency": "PRACTITIONER", "confidence": 0.6 }
+        ],
+        "totalYoe": 7
+      },
+      "jd": {
+        "requiredSkills": [
+          { "canonicalName": "PyTorch", "importance": "CRITICAL" },
+          { "canonicalName": "Machine Learning", "importance": "CRITICAL" },
+          { "canonicalName": "Python", "importance": "CRITICAL" }
+        ],
+        "preferredSkills": ["TensorFlow", "MLOps"],
+        "requiredYoe": 5,
+        "niceToHaveYoe": null,
+        "roleLevel": "SENIOR",
+        "keyResponsibilities": [
+          "Build and ship machine learning models in Python with PyTorch",
+          "Own MLOps for production deployment"
+        ],
+        "teamContext": "Applied ML",
+        "reportingStructure": null
+      }
+    },
+    {
+      "id": "solid-android",
+      "expectedTier": "B",
+      "profile": {
+        "name": "Grace Okoro",
+        "email": "grace@example.com",
+        "location": "Lagos, NG",
+        "education": [
+          { "school": "University of Lagos", "degree": "BSc", "field": "Computer Science", "startYear": 2014, "endYear": 2018 }
+        ],
+        "experience": [
+          { "company": "MobiTech", "title": "Android Engineer", "startDate": "2019-01-01", "endDate": null, "description": "Built Kotlin Android apps with Jetpack; integrated REST APIs and offline caching.", "isCurrent": true }
+        ],
+        "skills": [
+          { "canonicalName": "Kotlin", "rawName": null, "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 },
+          { "canonicalName": "Android", "rawName": null, "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 },
+          { "canonicalName": "Java", "rawName": null, "category": "TECHNICAL", "proficiency": "PRACTITIONER", "confidence": 0.6 }
+        ],
+        "totalYoe": 6
+      },
+      "jd": {
+        "requiredSkills": [
+          { "canonicalName": "Kotlin", "importance": "CRITICAL" },
+          { "canonicalName": "Android", "importance": "CRITICAL" },
+          { "canonicalName": "Java", "importance": "PREFERRED" }
+        ],
+        "preferredSkills": ["Jetpack Compose"],
+        "requiredYoe": 4,
+        "niceToHaveYoe": null,
+        "roleLevel": "MID",
+        "keyResponsibilities": [
+          "Build Kotlin Android apps with Jetpack",
+          "Integrate REST APIs and offline caching"
+        ],
+        "teamContext": "Mobile",
+        "reportingStructure": null
+      }
+    },
+    {
+      "id": "partial-security",
+      "expectedTier": "C",
+      "profile": {
+        "name": "Noah Schmidt",
+        "email": "noah@example.com",
+        "location": "Zurich, CH",
+        "education": [
+          { "school": "ETH Zurich", "degree": "MSc", "field": "Information Security", "startYear": 2015, "endYear": 2017 }
+        ],
+        "experience": [
+          { "company": "SecureNet", "title": "Security Analyst", "startDate": "2018-03-01", "endDate": null, "description": "Ran vulnerability scans and incident triage; some Python scripting for automation.", "isCurrent": true }
+        ],
+        "skills": [
+          { "canonicalName": "Python", "rawName": null, "category": "TECHNICAL", "proficiency": "PRACTITIONER", "confidence": 0.6 },
+          { "canonicalName": "Security", "rawName": null, "category": "DOMAIN", "proficiency": "ADVANCED", "confidence": 0.6 }
+        ],
+        "totalYoe": 6
+      },
+      "jd": {
+        "requiredSkills": [
+          { "canonicalName": "Python", "importance": "CRITICAL" },
+          { "canonicalName": "PostgreSQL", "importance": "CRITICAL" },
+          { "canonicalName": "Kafka", "importance": "CRITICAL" }
+        ],
+        "preferredSkills": ["Airflow"],
+        "requiredYoe": 4,
+        "niceToHaveYoe": null,
+        "roleLevel": "MID",
+        "keyResponsibilities": [
+          "Build Python data pipelines",
+          "Maintain PostgreSQL warehouses"
+        ],
+        "teamContext": "Data platform",
+        "reportingStructure": null
+      }
+    }
+  ],
+  "rankingCases": [
+    {
+      "id": "backend-go-shortlist",
+      "_comment": "One Go/Kafka senior backend JD scored against five candidates of varying fit. expectedOrder is the intended best-first ordering by tier; the offline ranker should put the A/B candidates in its top-3 (Precision@3) and order them well (NDCG). The two 'group' labels (region-x / region-y) are balanced so each region holds exactly one good (A/B) and one not-good (C) candidate -> equal selection rates -> parity 1.0 for a fair ranker; the lone D candidate is intentionally left unlabelled (excluded from the parity computation).",
+      "jd": {
+        "requiredSkills": [
+          { "canonicalName": "Go", "importance": "CRITICAL" },
+          { "canonicalName": "Kafka", "importance": "CRITICAL" },
+          { "canonicalName": "Kubernetes", "importance": "PREFERRED" }
+        ],
+        "preferredSkills": ["PostgreSQL"],
+        "requiredYoe": 5,
+        "niceToHaveYoe": null,
+        "roleLevel": "SENIOR",
+        "keyResponsibilities": [
+          "Design and operate distributed backend services in Go",
+          "Build event-driven pipelines on Kafka",
+          "Operate services on Kubernetes"
+        ],
+        "teamContext": "Backend platform",
+        "reportingStructure": "Reports to the Engineering Manager"
+      },
+      "expectedOrder": ["cand-strong", "cand-good", "cand-partial", "cand-thin", "cand-weak"],
+      "candidates": [
+        {
+          "id": "cand-strong",
+          "expectedTier": "A",
+          "group": "region-x",
+          "profile": {
+            "name": "Hiro Sato",
+            "email": "hiro@example.com",
+            "location": "Osaka, JP",
+            "education": [
+              { "school": "Kyoto University", "degree": "MSc", "field": "Computer Science", "startYear": 2010, "endYear": 2012 }
+            ],
+            "experience": [
+              { "company": "StreamCo", "title": "Senior Backend Engineer", "startDate": "2016-01-01", "endDate": null, "description": "Designed and operated distributed backend services in Go; built event-driven pipelines on Kafka; operated services on Kubernetes.", "isCurrent": true }
+            ],
+            "skills": [
+              { "canonicalName": "Go", "rawName": "Golang", "category": "TECHNICAL", "proficiency": "EXPERT", "confidence": 0.6 },
+              { "canonicalName": "Kafka", "rawName": null, "category": "TECHNICAL", "proficiency": "EXPERT", "confidence": 0.6 },
+              { "canonicalName": "Kubernetes", "rawName": "k8s", "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 }
+            ],
+            "totalYoe": 11
+          }
+        },
+        {
+          "id": "cand-good",
+          "expectedTier": "B",
+          "group": "region-y",
+          "profile": {
+            "name": "Ana Costa",
+            "email": "ana@example.com",
+            "location": "Lisbon, PT",
+            "education": [
+              { "school": "University of Lisbon", "degree": "BSc", "field": "Computer Science", "startYear": 2012, "endYear": 2016 }
+            ],
+            "experience": [
+              { "company": "PipeCo", "title": "Backend Engineer", "startDate": "2017-06-01", "endDate": null, "description": "Built backend services in Go and operated Kafka pipelines for an analytics product.", "isCurrent": true }
+            ],
+            "skills": [
+              { "canonicalName": "Go", "rawName": null, "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 },
+              { "canonicalName": "Kafka", "rawName": null, "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 }
+            ],
+            "totalYoe": 7
+          }
+        },
+        {
+          "id": "cand-partial",
+          "expectedTier": "C",
+          "group": "region-x",
+          "profile": {
+            "name": "Sam Becker",
+            "email": "sam@example.com",
+            "location": "Austin, US",
+            "education": [
+              { "school": "University of Texas", "degree": "BSc", "field": "Mathematics", "startYear": 2016, "endYear": 2020 }
+            ],
+            "experience": [
+              { "company": "FrontendCo", "title": "Frontend Engineer", "startDate": "2020-06-01", "endDate": null, "description": "Built React single-page apps; some Go scripting for internal tooling.", "isCurrent": true }
+            ],
+            "skills": [
+              { "canonicalName": "Go", "rawName": null, "category": "TECHNICAL", "proficiency": "PRACTITIONER", "confidence": 0.6 },
+              { "canonicalName": "React", "rawName": null, "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 }
+            ],
+            "totalYoe": 4
+          }
+        },
+        {
+          "id": "cand-thin",
+          "expectedTier": "C",
+          "group": "region-y",
+          "profile": {
+            "name": "Mei Lin",
+            "email": "mei@example.com",
+            "location": "Taipei, TW",
+            "education": [
+              { "school": "National Taiwan University", "degree": "BSc", "field": "Computer Science", "startYear": 2017, "endYear": 2021 }
+            ],
+            "experience": [
+              { "company": "AppCo", "title": "Software Engineer", "startDate": "2021-08-01", "endDate": null, "description": "Built Python web services; experimenting with Kafka for a side project.", "isCurrent": true }
+            ],
+            "skills": [
+              { "canonicalName": "Kafka", "rawName": null, "category": "TECHNICAL", "proficiency": "AWARE", "confidence": 0.6 },
+              { "canonicalName": "Python", "rawName": null, "category": "TECHNICAL", "proficiency": "ADVANCED", "confidence": 0.6 }
+            ],
+            "totalYoe": 3
+          }
+        },
+        {
+          "id": "cand-weak",
+          "expectedTier": "D",
+          "profile": {
+            "name": "Alex Tan",
+            "email": "alex@example.com",
+            "location": "Singapore, SG",
+            "education": [
+              { "school": "National University of Singapore", "degree": "BA", "field": "Marketing", "startYear": 2015, "endYear": 2019 }
+            ],
+            "experience": [
+              { "company": "AdAgency", "title": "Marketing Coordinator", "startDate": "2019-08-01", "endDate": null, "description": "Managed social campaigns and compiled weekly performance reports.", "isCurrent": true }
+            ],
+            "skills": [
+              { "canonicalName": "Google Analytics", "rawName": null, "category": "DOMAIN", "proficiency": "PRACTITIONER", "confidence": 0.6 }
+            ],
+            "totalYoe": 5
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "useDefineForClassFields": true,
+    "noEmit": true,
+    "types": ["chrome", "vite/client"],
+    "paths": {
+      "@peopleos/schemas": ["../../packages/schemas/src/index.ts"],
+      "@peopleos/schemas/*": ["../../packages/schemas/src/*"],
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "vite.config.ts", "manifest.config.ts"],
+  "exclude": ["node_modules", "dist", ".turbo"]
+}

@@ -1,0 +1,208 @@
+/* PeopleOS side panel — minimal, dependency-free styling (no Tailwind in the extension). */
+:root {
+  --po-bg: #ffffff;
+  --po-fg: #1d2226;
+  --po-muted: #5e6b74;
+  --po-border: #e3e6e8;
+  --po-accent: #0a66c2;
+  --po-accent-fg: #ffffff;
+  --po-surface: #f3f6f8;
+  --po-tier-a: #1a7f37;
+  --po-tier-b: #2563eb;
+  --po-tier-c: #b45309;
+  --po-tier-d: #9ca3af;
+  --po-danger: #b42318;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--po-fg);
+  background: var(--po-bg);
+}
+
+.po-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.po-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--po-border);
+  position: sticky;
+  top: 0;
+  background: var(--po-bg);
+  z-index: 1;
+}
+
+.po-header__title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.po-header__sub {
+  font-size: 11px;
+  color: var(--po-muted);
+}
+
+.po-body {
+  flex: 1;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.po-btn {
+  appearance: none;
+  border: 1px solid var(--po-accent);
+  background: var(--po-accent);
+  color: var(--po-accent-fg);
+  border-radius: 8px;
+  padding: 9px 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.po-btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.po-btn--ghost {
+  background: transparent;
+  color: var(--po-accent);
+}
+
+.po-link {
+  background: none;
+  border: none;
+  color: var(--po-accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.po-card {
+  border: 1px solid var(--po-border);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--po-surface);
+}
+
+.po-section-title {
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--po-muted);
+  margin: 0 0 6px;
+}
+
+.po-match {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--po-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--po-bg);
+}
+
+.po-match__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.po-match__title {
+  font-weight: 600;
+}
+
+.po-tier {
+  font-weight: 700;
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: #fff;
+}
+
+.po-tier--A { background: var(--po-tier-a); }
+.po-tier--B { background: var(--po-tier-b); }
+.po-tier--C { background: var(--po-tier-c); }
+.po-tier--D { background: var(--po-tier-d); }
+
+.po-meter {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--po-border);
+  overflow: hidden;
+}
+
+.po-meter__fill {
+  height: 100%;
+  background: var(--po-accent);
+}
+
+.po-gaps {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--po-muted);
+  font-size: 12px;
+}
+
+.po-banner {
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.po-banner--error {
+  background: #fdecea;
+  color: var(--po-danger);
+  border: 1px solid #f5c6c2;
+}
+
+.po-banner--info {
+  background: #eaf3fb;
+  color: var(--po-accent);
+  border: 1px solid #cfe3f6;
+}
+
+.po-banner--success {
+  background: #e7f6ec;
+  color: var(--po-tier-a);
+  border: 1px solid #c2e6cd;
+}
+
+.po-muted {
+  color: var(--po-muted);
+}
+
+.po-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--po-border);
+  border-top-color: var(--po-accent);
+  border-radius: 50%;
+  animation: po-spin 0.8s linear infinite;
+  vertical-align: -2px;
+  margin-right: 6px;
+}
+
+@keyframes po-spin {
+  to { transform: rotate(360deg); }
+}

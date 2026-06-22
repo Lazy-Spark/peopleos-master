@@ -1,0 +1,128 @@
+[project]
+name = "peopleos-ai"
+version = "0.1.0"
+description = "PeopleOS AI Engine (spec Layer 4): resume parsing + Module 1 candidate ranking."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "UNLICENSED" }
+authors = [{ name = "PeopleOS" }]
+
+# NOTE: pinned to the spec stack. Do NOT substitute libraries.
+# The Claude model id is supplied via ANTHROPIC_MODEL (default "claude-sonnet-4-6").
+dependencies = [
+    "fastapi>=0.111,<1.0",
+    "uvicorn[standard]>=0.30,<1.0",
+    "pydantic>=2.7,<3.0",
+    "pydantic-settings>=2.3,<3.0",
+    "anthropic>=0.34,<1.0",
+    "openai>=1.40,<2.0",
+    "langgraph>=0.2,<1.0",
+    "langchain-core>=0.2,<1.0",
+    "langsmith>=0.1,<1.0",
+    "tenacity>=8.4,<10.0",
+    "structlog>=24.1,<26.0",
+    "httpx>=0.27,<1.0",
+]
+
+[project.optional-dependencies]
+# Heavy / optional parsers. The service runs fully without these (rawText path,
+# heuristic NER fallback). Guarded imports degrade gracefully when absent.
+parsers = [
+    "pdfplumber>=0.11,<1.0",
+    "python-docx>=1.1,<2.0",
+    "spacy>=3.7,<4.0",
+]
+# Module 3 self-hosted transcription stack (spec: "Whisper large-v3, self-hosted on GPU
+# — NOT OpenAI hosted Whisper"). Heavy + GPU-only; the transcribe adapter guards these
+# imports and degrades to HTTP 503 ("submit a transcript") when absent. Installed only
+# on the dedicated GPU transcription host, never in the API/dev/CI environment.
+transcription = [
+    "whisperx>=3.1,<4.0",
+    "torch>=2.2,<3.0",
+]
+dev = [
+    "pytest>=8.2,<9.0",
+    "pytest-asyncio>=0.23,<1.0",
+    "ruff>=0.5,<1.0",
+    "mypy>=1.10,<2.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+# ── Ruff ─────────────────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "C4", "SIM", "RUF"]
+ignore = [
+    "E501", # line length handled by formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"app/prompts/*.py" = ["E501", "RUF001"] # long prompt strings + smart quotes in examples
+"tests/*.py" = ["B011", "RUF012"] # asserts + mutable class attrs on httpx test stubs
+# Module 2 internal validation models mirror the camelCase wire contract (like
+# schemas.py), and the tool/LLM availability exceptions follow the established
+# *Unavailable naming (cf. app/llm.py LLMUnavailable).
+"app/copilot/jd_writer.py" = ["N815"]
+"app/copilot/outreach.py" = ["N815"]
+"app/copilot/tools.py" = ["N818"]
+"app/llm.py" = ["N818"]
+# Module 3 internal validation model mirrors the camelCase wire contract (like
+# schemas.py); TranscriptionUnavailable follows the established *Unavailable naming
+# (cf. app/llm.py LLMUnavailable, app/copilot/tools.py ToolUnavailable).
+"app/interview/analyze.py" = ["N815"]
+"app/interview/transcribe.py" = ["N818"]
+# Module 4 internal validation model (_ChatContent) mirrors the camelCase wire
+# contract (like schemas.py), same as the Module 2/3 internal models above.
+"app/knowledge/chat.py" = ["N815"]
+# Module 6 internal validation models (_GrowthContent / _BuildVsBuyContent) mirror the
+# camelCase wire contract (like schemas.py), same as the Module 2/3/4 internal models.
+"app/skills/growth_path.py" = ["N815"]
+"app/skills/build_vs_buy.py" = ["N815"]
+# Module 7 internal validation model (_ExplainContent) mirrors the camelCase wire
+# contract (like schemas.py), same as the Module 2/3/4/6 internal models above.
+"app/attrition/explain.py" = ["N815"]
+# Module 8 internal validation model (_RecommendContent) mirrors the camelCase wire
+# contract (like schemas.py), same as the Module 2/3/4/6/7 internal models above.
+"app/mobility/recommend.py" = ["N815"]
+# Module 9 internal validation models (_LenientStep / _DraftContent) mirror the camelCase
+# wire contract (like schemas.py), same as the Module 2/3/4/6/7/8 internal models above.
+"app/workflows/draft.py" = ["N815"]
+# Module 10 assistant tool registry / dispatcher: the ToolUnavailable / ToolError exceptions
+# follow the established *Unavailable / *Error naming (cf. app/copilot/tools.py, app/llm.py).
+"app/assistant/tools.py" = ["N818"]
+
+# ── mypy ─────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+# Optional/heavy third-party libs without type stubs are imported behind guards.
+[[tool.mypy.overrides]]
+module = [
+    "pdfplumber.*",
+    "docx.*",
+    "spacy.*",
+    "langgraph.*",
+    "langchain_core.*",
+    "langsmith.*",
+]
+ignore_missing_imports = true
+
+# ── pytest ───────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-q"

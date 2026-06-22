@@ -1,0 +1,40 @@
+{
+  "name": "peopleos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PeopleOS — AI-native HR operating system (ATS + HRMS + AI agents)",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:rls": "psql \"$DATABASE_URL\" -f prisma/rls.sql",
+    "db:setup": "pnpm db:migrate && pnpm db:rls && pnpm db:seed",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "ai:dev": "cd services/ai && uvicorn app.main:app --reload --port 8000"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "prettier": "^3.3.0",
+    "prisma": "^5.18.0",
+    "tsx": "^4.16.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.18.0"
+  }
+}
