@@ -134,7 +134,9 @@ export type Confidence = z.infer<typeof Confidence>;
 // ── Pagination ─────────────────────────────────────────────────────────────
 export const PageQuery = z.object({
   cursor: z.string().optional(),
-  limit: z.number().int().min(1).max(100).default(25),
+  // `coerce` because pagination is read from the query string, where every value
+  // arrives as a string ("20"); plain z.number() would reject it (HTTP 400).
+  limit: z.coerce.number().int().min(1).max(100).default(25),
 });
 export type PageQuery = z.infer<typeof PageQuery>;
 
