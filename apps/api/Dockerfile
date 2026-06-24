@@ -9,6 +9,13 @@
 # the demo org (both idempotent), then listens on $PORT (Railway provides it).
 FROM node:20-slim
 
+# OpenSSL + CA certs: Prisma's schema/query engine needs libssl at runtime;
+# node:20-slim ships without it, so `prisma db push` fails on boot with a
+# "Schema engine error" unless we install it here.
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 # pnpm via corepack, pinned to the repo's packageManager.
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app

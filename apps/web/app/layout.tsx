@@ -15,16 +15,22 @@ export const metadata: Metadata = {
  * Root layout. Provider order: Clerk (auth/session) on the outside, then
  * TanStack Query for server state. Clerk reads NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
  * from the environment automatically.
+ *
+ * Clerk is mounted ONLY when a publishable key is configured. For the header-auth
+ * demo deployment (no Clerk), the key is unset and `ClerkProvider` — which throws
+ * without it — is skipped so the app boots and talks to the API via the
+ * `NEXT_PUBLIC_DEV_ORG_ID` tenant header.
  */
+const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <ClerkProvider>
-      <html lang="en" suppressHydrationWarning>
-        <body className="min-h-screen bg-background text-foreground antialiased">
+  const tree = (
+    <html lang="en" suppressHydrationWarning>
+      <body className="min-h-screen bg-background text-foreground antialiased">
           <Providers>
             <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-6">
               <header className="flex items-center justify-between border-b py-4">
@@ -81,6 +87,7 @@ export default function RootLayout({
           </Providers>
         </body>
       </html>
-    </ClerkProvider>
   );
+
+  return clerkEnabled ? <ClerkProvider>{tree}</ClerkProvider> : tree;
 }
