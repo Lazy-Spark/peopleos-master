@@ -59,6 +59,13 @@ class Settings(BaseSettings):
     # ── LLM call tuning (spec Layer 4: async, timeout=30s, retry x3) ──────────
     llm_timeout_seconds: float = 30.0
     llm_max_retries: int = 3
+    # Timeout for the agent's tool-dispatch HTTP call to the API's
+    # /internal/assistant/tool (+ /internal/copilot/*). Some tools (draft_workflow,
+    # draft_jd, generate_outreach) cause the API to call BACK here for an LLM
+    # generation, so the dispatch can legitimately take longer than a single LLM
+    # call — it must NOT be capped at llm_timeout_seconds or the agent gives up
+    # mid-tool and reports a spurious failure.
+    tool_timeout_seconds: float = 90.0
 
     # ── Batch ranking (Module 1: "parallelised across applicant batch") ───────
     # Max number of candidates scored concurrently in score_batch. Bounds the fan-out

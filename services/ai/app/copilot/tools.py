@@ -87,7 +87,7 @@ async def _post_internal(
         "content-type": "application/json",
     }
     try:
-        async with httpx.AsyncClient(timeout=settings.llm_timeout_seconds) as client:
+        async with httpx.AsyncClient(timeout=settings.tool_timeout_seconds) as client:
             resp = await client.post(url, json=body, headers=headers)
             resp.raise_for_status()
             data = resp.json()

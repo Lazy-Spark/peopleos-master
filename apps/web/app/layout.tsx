@@ -33,11 +33,11 @@ export default function RootLayout({
       <body className="min-h-screen bg-background text-foreground antialiased">
           <Providers>
             <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-6">
-              <header className="flex items-center justify-between border-b py-4">
-                <Link href="/" className="text-lg font-semibold tracking-tight">
+              <header className="flex items-center justify-between gap-x-8 border-b py-4">
+                <Link href="/" className="shrink-0 text-lg font-semibold tracking-tight">
                   PeopleOS
                 </Link>
-                <nav className="flex items-center gap-4 text-sm text-muted-foreground">
+                <nav className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   <Link href="/" className="hover:text-foreground">
                     Dashboard
                   </Link>

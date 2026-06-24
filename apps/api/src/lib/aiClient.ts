@@ -60,7 +60,7 @@ import { env } from "../env.js";
  * self-hosted models. A longer ceiling never slows a fast single-shot call; it only lets
  * the agentic loop finish instead of being cut off mid-reasoning (UND_ERR_HEADERS_TIMEOUT).
  */
-const AI_TIMEOUT_MS = 120_000;
+const AI_TIMEOUT_MS = 180_000;
 
 /**
  * Raised when the AI service is unreachable, times out, returns a non-2xx, or
