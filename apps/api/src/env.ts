@@ -19,6 +19,12 @@ const EnvSchema = z.object({
   API_HOST: z.string().min(1).default("0.0.0.0"),
   API_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
 
+  // ── CORS ─────────────────────────────────────────────────────────────────────
+  // Comma-separated list of allowed web origins (e.g. the deployed web app URL). The
+  // web app calls this API cross-origin, so the browser needs CORS headers. When UNSET,
+  // any origin is reflected (handy for local/demo); set it to lock down in production.
+  CORS_ORIGINS: z.string().optional(),
+
   // ── Datastore (RLS-subject app role) ─────────────────────────────────────────
   // The API is SUBJECT to Row-Level Security; it must use the peopleos_app role.
   DATABASE_URL_APP: z.string().url(),

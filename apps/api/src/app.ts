@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import rateLimit from "@fastify/rate-limit";
+import cors from "@fastify/cors";
 import {
   serializerCompiler,
   validatorCompiler,
@@ -93,6 +94,19 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   // ── Cross-cutting plugins ──────────────────────────────────────────────────
+  // CORS: the web app calls this API cross-origin (a different host in any deployed
+  // setup). Allow the configured origin(s); reflect any origin when none are set
+  // (local/demo). Auth is via headers (X-Org-Id / Authorization), not cookies, so we
+  // allow those request headers and do not enable credentials.
+  await app.register(cors, {
+    origin: env.CORS_ORIGINS
+      ? env.CORS_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
+      : true,
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Org-Id", "X-User-Id", "X-User-Role"],
+    maxAge: 86400,
+  });
+
   await app.register(swaggerPlugin);
 
   // auth is registered with fastify-plugin, so its onRequest hook applies app-wide.

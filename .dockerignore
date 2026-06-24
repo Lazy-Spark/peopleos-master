@@ -1,0 +1,19 @@
+# Keep the Docker build context lean + reproducible (deps are installed in-image).
+**/node_modules
+.git
+.gitignore
+**/.venv
+**/dist
+**/.next
+**/.turbo
+**/*.tsbuildinfo
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/__pycache__
+**/*.log
+.DS_Store
+**/.env
+**/.env.local
+services/ai/.models
+mlruns

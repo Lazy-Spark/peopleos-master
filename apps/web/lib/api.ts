@@ -151,10 +151,12 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
  * Dev-only org override. Set NEXT_PUBLIC_DEV_ORG_ID locally (a seed org UUID)
  * to exercise tenant-scoped endpoints before Clerk-derived org resolution lands.
  */
-const DEV_ORG_ID =
-  process.env.NODE_ENV !== "production"
-    ? process.env.NEXT_PUBLIC_DEV_ORG_ID
-    : undefined;
+// Header-based (non-Clerk) tenant selection. Set NEXT_PUBLIC_DEV_ORG_ID to a seed org
+// UUID to drive tenant-scoped endpoints without a Clerk session — honoured even in a
+// production build so a header-auth demo deployment works. The API only TRUSTS this
+// header when IT runs with NODE_ENV != production (its dev fallback); a real Clerk
+// deployment leaves NEXT_PUBLIC_DEV_ORG_ID unset and resolves the org from the session.
+const DEV_ORG_ID = process.env.NEXT_PUBLIC_DEV_ORG_ID;
 
 /** Error thrown for any non-2xx response; carries the parsed API error envelope. */
 export class ApiClientError extends Error {
