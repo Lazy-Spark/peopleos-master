@@ -52,8 +52,15 @@ import {
 } from "@peopleos/schemas";
 import { env } from "../env.js";
 
-/** 30s timeout for all AI calls (spec Layer 4: all LLM calls timeout=30s). */
-const AI_TIMEOUT_MS = 30_000;
+/**
+ * Per-request timeout for calls to the AI service. A single LLM call targets 30s
+ * (spec Layer 4), but the Module 2c / Module 10 endpoints run a multi-step ReAct
+ * loop (several sequential model calls + tool round-trips) behind one HTTP request,
+ * so the client budget must cover the whole loop — especially on slower large /
+ * self-hosted models. A longer ceiling never slows a fast single-shot call; it only lets
+ * the agentic loop finish instead of being cut off mid-reasoning (UND_ERR_HEADERS_TIMEOUT).
+ */
+const AI_TIMEOUT_MS = 120_000;
 
 /**
  * Raised when the AI service is unreachable, times out, returns a non-2xx, or
