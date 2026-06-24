@@ -1,3 +1,11 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// apps/web absolute dir — used to anchor the "@/" path alias so a production
+// `next build` resolves it regardless of how the inherited tsconfig baseUrl
+// (defined in the repo-root tsconfig.base.json) would otherwise resolve it.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -13,6 +21,15 @@ const nextConfig = {
   // A real release pipeline should re-enable these once the debt is paid down.
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+  webpack: (config) => {
+    // Resolve "@/..." to apps/web absolutely. The alias key "@" only matches "@/"
+    // requests, so "@peopleos/schemas" is unaffected.
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      "@": __dirname,
+    };
+    return config;
+  },
 };
 
 export default nextConfig;
