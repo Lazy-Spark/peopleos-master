@@ -101,6 +101,208 @@ def _build_client(settings: Settings) -> tuple[object, bool]:
     return client, False
 
 
+# ── NVIDIA (OpenAI-compatible) backend ───────────────────────────────────────
+# When ``settings.use_nvidia`` is true, generation + native tool-use are routed
+# through NVIDIA's OpenAI-compatible Chat Completions endpoint using the OpenAI SDK
+# (already a dependency). The recruiter/assistant ReAct loops build their history in
+# ANTHROPIC shape (tool_use / tool_result content blocks); we translate that history
+# and the tool schemas to OpenAI shape per call, then translate the response back into
+# the same ``LLMToolTurn`` the Anthropic path returns — so no caller changes are needed.
+
+
+def _build_openai_client(settings: Settings) -> object:
+    """Async OpenAI client pointed at NVIDIA's OpenAI-compatible base URL."""
+    from openai import AsyncOpenAI
+
+    return AsyncOpenAI(
+        api_key=settings.nvidia_api_key,
+        base_url=settings.nvidia_base_url,
+        timeout=settings.llm_timeout_seconds,
+    )
+
+
+def _openai_retryable() -> tuple[type[Exception], ...]:
+    """Transient OpenAI-SDK errors worth retrying (4xx bad-request/auth fail fast)."""
+    import openai
+
+    return (
+        openai.APIConnectionError,
+        openai.APITimeoutError,
+        openai.RateLimitError,
+        openai.InternalServerError,
+        LLMCallError,
+    )
+
+
+def _anthropic_tools_to_openai(tools: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Anthropic tool schema ({name, description, input_schema}) -> OpenAI function tool."""
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": t.get("name"),
+                "description": t.get("description", ""),
+                "parameters": t.get("input_schema", {"type": "object", "properties": {}}),
+            },
+        }
+        for t in tools
+    ]
+
+
+def _anthropic_messages_to_openai(
+    system: str, messages: list[dict[str, object]]
+) -> list[dict[str, object]]:
+    """Translate the ReAct loop's Anthropic-shape history into OpenAI chat messages.
+
+    Handles plain string turns; assistant turns whose content is a list of
+    text / tool_use blocks (-> an assistant message with ``tool_calls``); and user
+    turns whose content is a list of tool_result blocks (-> one OpenAI ``tool`` message
+    per result, keyed by ``tool_call_id``).
+    """
+    import json
+
+    out: list[dict[str, object]] = [{"role": "system", "content": system}]
+    for m in messages:
+        role = m.get("role")
+        content = m.get("content")
+        if isinstance(content, str):
+            out.append({"role": role, "content": content})
+            continue
+        if role == "assistant":
+            text_parts: list[str] = []
+            tool_calls: list[dict[str, object]] = []
+            for b in content or []:
+                if b.get("type") == "text":
+                    text_parts.append(b.get("text", ""))
+                elif b.get("type") == "tool_use":
+                    tool_calls.append(
+                        {
+                            "id": b.get("id"),
+                            "type": "function",
+                            "function": {
+                                "name": b.get("name"),
+                                "arguments": json.dumps(b.get("input", {})),
+                            },
+                        }
+                    )
+            msg: dict[str, object] = {"role": "assistant", "content": "".join(text_parts)}
+            if tool_calls:
+                msg["tool_calls"] = tool_calls
+            out.append(msg)
+        else:  # user turn carrying tool_result blocks
+            for b in content or []:
+                if b.get("type") == "tool_result":
+                    out.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": b.get("tool_use_id"),
+                            "content": str(b.get("content", "")),
+                        }
+                    )
+                else:
+                    out.append({"role": "user", "content": str(b)})
+    return out
+
+
+async def _call_llm_nvidia(req: LLMRequest, settings: Settings) -> str:
+    """Single-shot generation via NVIDIA's OpenAI-compatible Chat Completions."""
+    client = _build_openai_client(settings)
+
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(settings.llm_max_retries),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(_openai_retryable()),
+    )
+    async def _attempt() -> str:
+        resp = await client.chat.completions.create(  # type: ignore[attr-defined]
+            model=settings.nvidia_model,
+            max_tokens=req.max_tokens,
+            temperature=req.temperature,
+            messages=[
+                {"role": "system", "content": req.system},
+                {"role": "user", "content": req.user},
+            ],
+        )
+        text = (resp.choices[0].message.content or "").strip()
+        if not text:
+            raise LLMCallError("Empty response from NVIDIA")
+        return text
+
+    try:
+        return await _attempt()
+    except Exception as exc:
+        log.error("nvidia_llm_failed", run_name=req.run_name, error=str(exc))
+        raise LLMCallError(f"NVIDIA call failed after retries: {exc}") from exc
+
+
+async def _call_llm_tools_nvidia(
+    *,
+    system: str,
+    messages: list[dict[str, object]],
+    tools: list[dict[str, object]],
+    max_tokens: int,
+    temperature: float,
+    run_name: str,
+    settings: Settings,
+) -> "LLMToolTurn":
+    """One native tool-use step via NVIDIA's OpenAI-compatible endpoint.
+
+    Translates the Anthropic-shape history + tools to OpenAI shape, calls the model,
+    and translates the response back into an ``LLMToolTurn`` (with Anthropic-shape
+    ``raw_content``) so the caller's ReAct loop is unchanged.
+    """
+    import json
+
+    client = _build_openai_client(settings)
+    oai_messages = _anthropic_messages_to_openai(system, messages)
+    oai_tools = _anthropic_tools_to_openai(tools)
+
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(settings.llm_max_retries),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(_openai_retryable()),
+    )
+    async def _attempt() -> "LLMToolTurn":
+        resp = await client.chat.completions.create(  # type: ignore[attr-defined]
+            model=settings.nvidia_model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            messages=oai_messages,
+            tools=oai_tools,
+            tool_choice="auto",
+        )
+        msg = resp.choices[0].message
+        text = (msg.content or "").strip()
+        raw_content: list[dict[str, object]] = []
+        if text:
+            raw_content.append({"type": "text", "text": text})
+        tool_uses: list[ToolUseBlock] = []
+        for tc in getattr(msg, "tool_calls", None) or []:
+            try:
+                args = json.loads(tc.function.arguments or "{}")
+            except (ValueError, TypeError):
+                args = {}
+            tu = ToolUseBlock(id=tc.id, name=tc.function.name, input=dict(args))
+            tool_uses.append(tu)
+            raw_content.append(
+                {"type": "tool_use", "id": tu.id, "name": tu.name, "input": tu.input}
+            )
+        return LLMToolTurn(
+            stop_reason="tool_use" if tool_uses else "end_turn",
+            text=text,
+            tool_uses=tool_uses,
+            raw_content=raw_content,
+        )
+
+    try:
+        return await _attempt()
+    except Exception as exc:
+        log.error("nvidia_tool_call_failed", run_name=run_name, error=str(exc))
+        raise LLMCallError(f"NVIDIA tool call failed after retries: {exc}") from exc
+
+
 async def call_llm(req: LLMRequest, settings: Settings | None = None) -> str:
     """Call Claude with retry + LangSmith tracing; return the response text.
 
@@ -110,8 +312,13 @@ async def call_llm(req: LLMRequest, settings: Settings | None = None) -> str:
     settings = settings or get_settings()
     if not settings.anthropic_enabled:
         raise LLMUnavailable(
-            "ANTHROPIC_API_KEY not set — caller should use the offline fallback."
+            "No LLM provider configured (NVIDIA_API_KEY / ANTHROPIC_API_KEY) — "
+            "caller should use the offline fallback."
         )
+
+    # NVIDIA (OpenAI-compatible) takes precedence when its key is set.
+    if settings.use_nvidia:
+        return await _call_llm_nvidia(req, settings)
 
     # Safe here: only reached when a key is set, so the SDK is installed.
     import anthropic
@@ -219,7 +426,19 @@ async def call_llm_tools(
     settings = settings or get_settings()
     if not settings.anthropic_enabled:
         raise LLMUnavailable(
-            "ANTHROPIC_API_KEY not set — the chat ReAct loop requires the LLM to choose tools."
+            "No LLM provider configured — the ReAct loop requires the LLM to choose tools."
+        )
+
+    # NVIDIA (OpenAI-compatible) takes precedence when its key is set.
+    if settings.use_nvidia:
+        return await _call_llm_tools_nvidia(
+            system=system,
+            messages=messages,
+            tools=tools,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            run_name=run_name,
+            settings=settings,
         )
 
     import anthropic

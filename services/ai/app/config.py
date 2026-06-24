@@ -41,6 +41,16 @@ class Settings(BaseSettings):
     # EmbedResponse.dim and used by the document pipeline's chunk embeddings.
     embedding_dim: int = 1536
 
+    # ── NVIDIA (OpenAI-compatible LLM) ────────────────────────────────────────
+    # When NVIDIA_API_KEY is set, the LLM layer (app/llm.py) routes generation AND
+    # native tool-use through NVIDIA's OpenAI-compatible endpoint instead of
+    # Anthropic. The OpenAI SDK (already a dependency) is pointed at NVIDIA_BASE_URL.
+    # Embeddings are unaffected (they keep their OpenAI / offline-fallback path).
+    nvidia_api_key: str | None = None
+    nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
+    # A tool-use (function-calling) capable model on NVIDIA's catalog.
+    nvidia_model: str = "meta/llama-3.1-70b-instruct"
+
     # ── LangSmith (tracing + eval registry) ──────────────────────────────────
     langsmith_tracing: bool = False
     langsmith_api_key: str | None = None
@@ -79,9 +89,18 @@ class Settings(BaseSettings):
     transcription_enabled: bool = True
 
     @property
+    def use_nvidia(self) -> bool:
+        """Route LLM generation + tool-use through NVIDIA's OpenAI-compatible API."""
+        return bool(self.nvidia_api_key)
+
+    @property
     def anthropic_enabled(self) -> bool:
-        """True when a real Anthropic call can be made; else use offline stub."""
-        return bool(self.anthropic_api_key)
+        """True when a real LLM call can be made (NVIDIA or Anthropic); else offline stub.
+
+        Name kept for back-compat with the many call sites that gate on it; it now
+        means "an LLM provider is configured", not Anthropic specifically.
+        """
+        return bool(self.anthropic_api_key or self.nvidia_api_key)
 
     @property
     def openai_enabled(self) -> bool:
@@ -91,7 +110,7 @@ class Settings(BaseSettings):
     @property
     def model_version(self) -> str:
         """The model identifier persisted on every AI output (`modelVersion`)."""
-        return self.anthropic_model
+        return self.nvidia_model if self.use_nvidia else self.anthropic_model
 
 
 @lru_cache(maxsize=1)
