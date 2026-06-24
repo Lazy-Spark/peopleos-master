@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.620.0",
-    "@clerk/fastify": "^1.1.0",
+    "@clerk/fastify": "^2.6.0",
     "@fastify/rate-limit": "^9.1.0",
     "@fastify/swagger": "^8.15.0",
     "@fastify/swagger-ui": "^4.1.0",

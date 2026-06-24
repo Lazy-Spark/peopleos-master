@@ -3,7 +3,6 @@ import rateLimit from "@fastify/rate-limit";
 import {
   serializerCompiler,
   validatorCompiler,
-  hasZodFastifySchemaValidationErrors,
   type ZodTypeProvider,
 } from "fastify-type-provider-zod";
 import { ZodError } from "zod";
@@ -182,13 +181,19 @@ function mapError(error: unknown): {
     return { code: error.code, status: error.status, message: error.message, details: error.details };
   }
 
-  // fastify-type-provider-zod attaches Zod validation errors on request schemas.
-  if (hasZodFastifySchemaValidationErrors(error)) {
+  // Fastify attaches `.validation` (an array) to request-schema validation failures.
+  // (We check the native field directly rather than fastify-type-provider-zod's
+  // `hasZodFastifySchemaValidationErrors`, which was removed in v2.1.)
+  const fastifyValidation =
+    typeof error === "object" && error !== null && "validation" in error
+      ? (error as { validation?: unknown }).validation
+      : undefined;
+  if (Array.isArray(fastifyValidation)) {
     return {
       code: "VALIDATION_ERROR",
       status: 400,
       message: "Request failed schema validation.",
-      details: error.validation,
+      details: fastifyValidation,
     };
   }
 
