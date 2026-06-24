@@ -28,6 +28,16 @@ const nextConfig = {
       ...(config.resolve.alias || {}),
       "@": __dirname,
     };
+    // The shared @peopleos/schemas package is consumed as TS *source* (via
+    // transpilePackages) and uses explicit ".js" extensions in its relative
+    // imports (TS NodeNext/ESM style, e.g. `export * from "./common.js"`).
+    // Teach webpack to also try ".ts"/".tsx" when a ".js" import has no ".js" file.
+    config.resolve.extensionAlias = {
+      ...(config.resolve.extensionAlias || {}),
+      ".js": [".js", ".ts", ".tsx"],
+      ".mjs": [".mjs", ".mts"],
+      ".cjs": [".cjs", ".cts"],
+    };
     return config;
   },
 };
