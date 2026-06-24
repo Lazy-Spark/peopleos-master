@@ -50,7 +50,7 @@ from ..schemas import (
     WorkflowStep,
     WorkflowTrigger,
 )
-from ..validation import validate_or_review
+from ..validation import HumanReviewNeeded, validate_or_review
 
 log = structlog.get_logger(__name__)
 
@@ -355,8 +355,11 @@ async def draft_workflow(
             LLMRequest(
                 system=system,
                 user=prompt,
-                max_tokens=1800,
-                temperature=0.2,  # structured authoring, kept grounded
+                # Headroom so the JSON draft is never truncated mid-object (a longer
+                # orgContext + a richer multi-step workflow can exceed a smaller cap,
+                # producing invalid JSON that fails parsing on every retry).
+                max_tokens=3000,
+                temperature=0.0,  # structured authoring — deterministic + grounded
                 run_name="module9.workflow_draft",
                 tags=["module9", "workflow", "draft", PROMPT_VERSION],
             ),
@@ -374,6 +377,13 @@ async def draft_workflow(
         )
     except LLMUnavailable:
         log.info("workflow_draft_offline_fallback", orgId=req.orgId)
+        return _offline_response(req, settings)
+    except HumanReviewNeeded:
+        # The model could not produce a schema-valid draft within the retry budget
+        # (e.g. a smaller/older model emitting malformed JSON). Rather than fail the
+        # tool with a 422, return the deterministic template so the assistant always
+        # hands the user a runnable starting point (clearly marked low-confidence).
+        log.info("workflow_draft_review_fallback", orgId=req.orgId)
         return _offline_response(req, settings)
 
     # Enforce grounding + repair regardless of the model's output so the draft is runnable.
